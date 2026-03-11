@@ -62,27 +62,11 @@ jobs:
             -r win-x64 `
             --self-contained true `
             -p:PublishSingleFile=true `
-            -p:EnableCompressionInSingleFile=true `
+            -p:EnableCompressionInSingleFile=false `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:DebugSymbols=false `
             -p:DebugType=None `
             -o dist
-
-      - name: Install UPX
-        shell: pwsh
-        run: |
-          $upxVersion = "4.2.4"
-          $url = "https://github.com/upx/upx/releases/download/v${upxVersion}/upx-${upxVersion}-win64.zip"
-          $zipPath = Join-Path $env:RUNNER_TEMP "upx.zip"
-          $extractPath = Join-Path $env:RUNNER_TEMP "upx"
-          Invoke-WebRequest -Uri $url -OutFile $zipPath
-          Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
-          $upxDir = Get-ChildItem -Path $extractPath -Directory | Select-Object -First 1
-          echo "$($upxDir.FullName)" | Out-File -FilePath $env:GITHUB_PATH -Append
-
-      - name: Compress frontend with UPX
-        shell: pwsh
-        run: upx --best --lzma --force "dist\OpenSysKit.UI.exe"
 
       # ── 构建驱动 ────────────────────────────────────────────
       - name: Build driver
