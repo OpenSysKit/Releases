@@ -134,11 +134,11 @@ jobs:
       # ── 构建 MSI 安装包 ────────────────────────────────────
       - name: Install WiX Toolset
         shell: pwsh
-        run: dotnet tool install --global wix
+        run: dotnet tool install --global wix --version 5.0.2
 
       - name: Add WiX UI extension
         shell: pwsh
-        run: wix extension add -g WixToolset.UI.wixext
+        run: wix extension add -g WixToolset.UI.wixext/5.0.1
 
       - name: Inject version into WiX
         shell: pwsh
