@@ -68,6 +68,35 @@ jobs:
             -p:DebugType=None `
             -o dist
 
+      - name: Sign frontend executable
+        shell: pwsh
+        env:
+          CODESIGN_PFX: ${{ secrets.CODESIGN_PFX }}
+          CODESIGN_PASSWORD: ${{ secrets.CODESIGN_PASSWORD }}
+        run: |
+          if (-not $env:CODESIGN_PFX) { throw "CODESIGN_PFX 未设置，拒绝发布未签名产物" }
+          if (-not $env:CODESIGN_PASSWORD) { throw "CODESIGN_PASSWORD 未设置" }
+          $certPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          $b64 = $env:CODESIGN_PFX -replace '\s', ''
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($b64))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" `
+            -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match "x64" } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe not found" }
+          & $signtool.FullName sign `
+            /fd SHA256 `
+            /f $certPath `
+            /p $env:CODESIGN_PASSWORD `
+            /tr http://timestamp.digicert.com `
+            /td SHA256 `
+            "dist\OpenSysKit.UI.exe"
+          if ($LASTEXITCODE -ne 0) { throw "前端签名失败" }
+          $sig = Get-AuthenticodeSignature "dist\OpenSysKit.UI.exe"
+          if (-not $sig.SignerCertificate) { throw "前端签名校验失败" }
+          Remove-Item $certPath -Force
+
       # ── 构建驱动 ────────────────────────────────────────────
       - name: Build driver
         shell: pwsh
@@ -86,6 +115,11 @@ jobs:
           echo "sha256=$hash" >> $env:GITHUB_OUTPUT
           Write-Host "Frontend SHA256: $hash"
 
+      - name: Generate backend Windows resources
+        shell: pwsh
+        run: .\scripts\generate-winres.ps1 -RootPath $PWD
+        working-directory: backend
+
       # ── 构建后端 ────────────────────────────────────────────
       - name: Build backend
         shell: pwsh
@@ -93,7 +127,7 @@ jobs:
           $version = "${{ inputs.version }}"
           $buildTime = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
           $feHash = "${{ steps.frontend_hash.outputs.sha256 }}"
-          $ldflags = "-s -w -X main.version=$version -X main.buildTime=$buildTime"
+          $ldflags = "-H=windowsgui -s -w -X main.version=$version -X main.buildTime=$buildTime"
           if ($feHash) {
             $ldflags += " -X main.frontendSHA256=$feHash"
           }
@@ -106,16 +140,14 @@ jobs:
         run: Copy-Item "backend\assets\DriverLoader.sys" "dist\DriverLoader.sys"
 
       # ── 代码签名 ────────────────────────────────────────────
-      - name: Sign executables
+      - name: Sign backend executable
         shell: pwsh
         env:
           CODESIGN_PFX: ${{ secrets.CODESIGN_PFX }}
           CODESIGN_PASSWORD: ${{ secrets.CODESIGN_PASSWORD }}
         run: |
-          if (-not $env:CODESIGN_PFX) {
-            Write-Warning "CODESIGN_PFX 未设置，跳过签名"
-            exit 0
-          }
+          if (-not $env:CODESIGN_PFX) { throw "CODESIGN_PFX 未设置，拒绝发布未签名产物" }
+          if (-not $env:CODESIGN_PASSWORD) { throw "CODESIGN_PASSWORD 未设置" }
           $certPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
           $b64 = $env:CODESIGN_PFX -replace '\s', ''
           [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($b64))
@@ -125,19 +157,16 @@ jobs:
             Sort-Object FullName -Descending |
             Select-Object -First 1
           if (-not $signtool) { throw "signtool.exe not found" }
-          Write-Host "Using: $($signtool.FullName)"
-          $files = @("dist\OpenSysKit.exe", "dist\OpenSysKit.UI.exe")
-          foreach ($f in $files) {
-            & $signtool.FullName sign `
-              /fd SHA256 `
-              /f $certPath `
-              /p $env:CODESIGN_PASSWORD `
-              /tr http://timestamp.digicert.com `
-              /td SHA256 `
-              $f
-            if ($LASTEXITCODE -ne 0) { throw "签名失败: $f" }
-            Write-Host "已签名: $f"
-          }
+          & $signtool.FullName sign `
+            /fd SHA256 `
+            /f $certPath `
+            /p $env:CODESIGN_PASSWORD `
+            /tr http://timestamp.digicert.com `
+            /td SHA256 `
+            "dist\OpenSysKit.exe"
+          if ($LASTEXITCODE -ne 0) { throw "后端签名失败" }
+          $sig = Get-AuthenticodeSignature "dist\OpenSysKit.exe"
+          if (-not $sig.SignerCertificate) { throw "后端签名校验失败" }
           Remove-Item $certPath -Force
 
       - name: List dist contents

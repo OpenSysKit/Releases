@@ -29,8 +29,10 @@
       <RegistrySearch Root="HKLM" Key="SOFTWARE\OpenSysKit" Name="InstallDir" Type="raw" />
     </Property>
 
-    <!-- 卸载时删除 logs 目录所用的属性（CostFinalize 后赋值） -->
-    <SetProperty Id="LOGSDIR" After="CostFinalize" Value="[INSTALLDIR]logs" />
+    <!-- 卸载时从注册表读取 logs 路径，供 RemoveFolderEx 在 CostInitialize 前使用 -->
+    <Property Id="LOGSDIR">
+      <RegistrySearch Root="HKLM" Key="SOFTWARE\OpenSysKit" Name="LogsDir" Type="raw" />
+    </Property>
 
     <!-- 安装目录 -->
     <StandardDirectory Id="ProgramFiles64Folder">
@@ -60,6 +62,11 @@
                          Type="string"
                          Value="[INSTALLDIR]"
                          KeyPath="yes" />
+          <RegistryValue Root="HKLM"
+                         Key="SOFTWARE\OpenSysKit"
+                         Name="LogsDir"
+                         Type="string"
+                         Value="[INSTALLDIR]logs" />
         </Component>
 
         <!-- 卸载时递归删除 logs 子目录 -->
