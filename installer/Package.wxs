@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <?include Variables.wxi ?>
+
+  <Package Name="$(var.ProductName)"
+           Manufacturer="$(var.Manufacturer)"
+           Version="$(var.ProductVersion)"
+           UpgradeCode="$(var.UpgradeCode)"
+           Language="2052"
+           Codepage="936"
+           InstallerVersion="500"
+           Compressed="yes"
+           Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="已安装更高版本的 $(var.ProductName)，请先卸载。"
+                  AllowSameVersionUpgrades="yes" />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon" SourceFile="$(var.DistDir)\OpenSysKit.exe" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/OpenSysKit" />
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+
+    <!-- 安装目录 -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLDIR" Name="OpenSysKit">
+
+        <Component Id="BackendExe" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567801">
+          <File Id="OpenSysKitExe" Source="$(var.DistDir)\OpenSysKit.exe" KeyPath="yes" />
+        </Component>
+
+        <Component Id="FrontendExe" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567802">
+          <File Id="OpenSysKitUIExe" Source="$(var.DistDir)\OpenSysKit.UI.exe" KeyPath="yes" />
+        </Component>
+
+        <Component Id="DriverLoaderSys" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567803">
+          <File Id="DriverLoaderFile" Source="$(var.DistDir)\DriverLoader.sys" KeyPath="yes" />
+        </Component>
+
+        <Component Id="DriverSys" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567804">
+          <File Id="OpenSysKitSys" Source="$(var.DistDir)\OpenSysKit.sys" KeyPath="yes" />
+        </Component>
+
+      </Directory>
+    </StandardDirectory>
+
+    <!-- 开始菜单快捷方式 -->
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ProgramMenuDir" Name="OpenSysKit">
+        <Component Id="StartMenuShortcut" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567810">
+          <Shortcut Id="AppShortcut"
+                    Name="OpenSysKit"
+                    Target="[INSTALLDIR]OpenSysKit.exe"
+                    WorkingDirectory="INSTALLDIR"
+                    Icon="AppIcon" />
+          <RemoveFolder Id="RemoveProgramMenuDir" On="uninstall" />
+          <RegistryValue Root="HKCU"
+                         Key="Software\OpenSysKit"
+                         Name="StartMenu"
+                         Type="integer"
+                         Value="1"
+                         KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <!-- 桌面快捷方式 -->
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567811">
+        <Shortcut Id="DesktopAppShortcut"
+                  Name="OpenSysKit"
+                  Target="[INSTALLDIR]OpenSysKit.exe"
+                  WorkingDirectory="INSTALLDIR"
+                  Icon="AppIcon" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\OpenSysKit"
+                       Name="Desktop"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+
+    <!-- 开机自启（可选） -->
+    <Component Id="AutoStart" Directory="INSTALLDIR" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567812">
+      <RegistryValue Root="HKCU"
+                     Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                     Name="OpenSysKit"
+                     Type="string"
+                     Value="&quot;[INSTALLDIR]OpenSysKit.exe&quot;"
+                     KeyPath="yes" />
+    </Component>
+
+    <!-- Feature 定义 -->
+    <Feature Id="MainFeature" Title="OpenSysKit" Level="1">
+      <ComponentRef Id="BackendExe" />
+      <ComponentRef Id="FrontendExe" />
+      <ComponentRef Id="DriverLoaderSys" />
+      <ComponentRef Id="DriverSys" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <Feature Id="DesktopFeature" Title="桌面快捷方式" Level="1">
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+    <Feature Id="AutoStartFeature" Title="开机自启" Level="2">
+      <ComponentRef Id="AutoStart" />
+    </Feature>
+
+    <!-- WiX UI -->
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLDIR" />
+
+  </Package>
+</Wix>

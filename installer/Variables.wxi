@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Include>
+  <?define ProductVersion = "1.0.0" ?>
+  <?define ProductName = "OpenSysKit" ?>
+  <?define Manufacturer = "OpenSysKit" ?>
+  <?define UpgradeCode = "7A3B8F2E-1D4C-4E6A-9F0B-2C5D8E7F1A3B" ?>
+</Include>

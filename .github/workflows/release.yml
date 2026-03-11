@@ -1,0 +1,210 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (如 v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build All + Package + Release
+    runs-on: windows-latest
+
+    steps:
+      # ── Checkout 各仓库 ──────────────────────────────────────
+      - name: Checkout releases repo
+        uses: actions/checkout@v4
+        with:
+          path: releases
+
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+        with:
+          repository: OpenSysKit/new-FrontEnd
+          path: frontend
+          token: ${{ secrets.REPO_DISPATCH_TOKEN }}
+
+      - name: Checkout backend
+        uses: actions/checkout@v4
+        with:
+          repository: OpenSysKit/BackEnd
+          path: backend
+          token: ${{ secrets.REPO_DISPATCH_TOKEN }}
+
+      - name: Checkout driver
+        uses: actions/checkout@v4
+        with:
+          repository: OpenSysKit/Driver
+          path: driver
+          token: ${{ secrets.REPO_DISPATCH_TOKEN }}
+
+      # ── 工具链 ──────────────────────────────────────────────
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.x'
+          cache-dependency-path: backend/go.sum
+
+      # ── 构建前端 ────────────────────────────────────────────
+      - name: Build frontend
+        shell: pwsh
+        run: |
+          dotnet publish frontend\OpenSysKit.UI.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:DebugSymbols=false `
+            -p:DebugType=None `
+            -o dist
+
+      - name: Install UPX
+        shell: pwsh
+        run: |
+          $upxVersion = "4.2.4"
+          $url = "https://github.com/upx/upx/releases/download/v${upxVersion}/upx-${upxVersion}-win64.zip"
+          $zipPath = Join-Path $env:RUNNER_TEMP "upx.zip"
+          $extractPath = Join-Path $env:RUNNER_TEMP "upx"
+          Invoke-WebRequest -Uri $url -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force
+          $upxDir = Get-ChildItem -Path $extractPath -Directory | Select-Object -First 1
+          echo "$($upxDir.FullName)" | Out-File -FilePath $env:GITHUB_PATH -Append
+
+      - name: Compress frontend with UPX
+        shell: pwsh
+        run: upx --best --lzma --force "dist\OpenSysKit.UI.exe"
+
+      # ── 构建驱动 ────────────────────────────────────────────
+      - name: Build driver
+        shell: pwsh
+        run: |
+          cmake -B driver\build -S driver -G "Visual Studio 17 2022" -A x64
+          cmake --build driver\build --config Release
+          Copy-Item "driver\build\Release\OpenSysKit.sys" "dist\OpenSysKit.sys"
+
+      # ── 计算前端 SHA256 ─────────────────────────────────────
+      - name: Compute frontend SHA256
+        id: frontend_hash
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash -Path "dist\OpenSysKit.UI.exe" -Algorithm SHA256).Hash.ToLower()
+          echo "sha256=$hash" >> $env:GITHUB_OUTPUT
+          Write-Host "Frontend SHA256: $hash"
+
+      # ── 构建后端 ────────────────────────────────────────────
+      - name: Build backend
+        shell: pwsh
+        run: |
+          $version = "${{ inputs.version }}"
+          $buildTime = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
+          $feHash = "${{ steps.frontend_hash.outputs.sha256 }}"
+          $ldflags = "-s -w -X main.version=$version -X main.buildTime=$buildTime"
+          if ($feHash) {
+            $ldflags += " -X main.frontendSHA256=$feHash"
+          }
+          go build -ldflags "$ldflags" -o dist\OpenSysKit.exe .\cmd\server
+        working-directory: backend
+
+      # ── 复制 DriverLoader.sys ───────────────────────────────
+      - name: Copy DriverLoader.sys
+        shell: pwsh
+        run: Copy-Item "backend\assets\DriverLoader.sys" "dist\DriverLoader.sys"
+
+      - name: List dist contents
+        shell: pwsh
+        run: Get-ChildItem dist\ -Recurse | Format-Table Name, Length
+
+      # ── 打包便携版 ZIP ──────────────────────────────────────
+      - name: Create portable ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist\* -DestinationPath "OpenSysKit-win-x64.zip" -CompressionLevel Optimal
+
+      # ── 构建 MSI 安装包 ────────────────────────────────────
+      - name: Install WiX Toolset
+        shell: pwsh
+        run: dotnet tool install --global wix
+
+      - name: Add WiX UI extension
+        shell: pwsh
+        run: wix extension add -g WixToolset.UI.wixext
+
+      - name: Inject version into WiX
+        shell: pwsh
+        run: |
+          $ver = "${{ inputs.version }}" -replace '^v', ''
+          $parts = $ver -split '\.'
+          while ($parts.Count -lt 3) { $parts += '0' }
+          $msiVer = ($parts[0..2]) -join '.'
+          $wxi = Get-Content "releases\installer\Variables.wxi" -Raw
+          $wxi = $wxi -replace 'ProductVersion = "[\d.]+"', "ProductVersion = `"$msiVer`""
+          Set-Content "releases\installer\Variables.wxi" $wxi
+          Write-Host "MSI version: $msiVer"
+
+      - name: Build MSI
+        shell: pwsh
+        run: |
+          wix build `
+            "releases\installer\Package.wxs" `
+            -d DistDir="$PWD\dist" `
+            -ext WixToolset.UI.wixext `
+            -culture zh-CN `
+            -loc "releases\installer\zh-CN.wxl" `
+            -o "OpenSysKit-Setup-x64.msi"
+
+      # ── 生成 Release Notes ──────────────────────────────────
+      - name: Generate release notes
+        id: release_notes
+        shell: pwsh
+        run: |
+          $json = Get-Content "releases\release-notes.json" | ConvertFrom-Json
+          $md = "# OpenSysKit ${{ inputs.version }}`n`n"
+          $md += "> $($json.highlights)`n`n"
+          $md += "## 新功能`n`n"
+          foreach ($f in $json.features) {
+            $md += "- **$($f.title)** — $($f.description)`n"
+          }
+          if ($json.fixes.Count -gt 0) {
+            $md += "`n## 修复`n`n"
+            foreach ($f in $json.fixes) {
+              $md += "- $($f.title): $($f.description)`n"
+            }
+          }
+          if ($json.known_issues.Count -gt 0) {
+            $md += "`n## 已知问题`n`n"
+            foreach ($i in $json.known_issues) {
+              $md += "- $i`n"
+            }
+          }
+          $md += "`n---`n`n"
+          $md += "| 文件 | 说明 |`n|------|------|`n"
+          $md += "| ``OpenSysKit-win-x64.zip`` | 便携版（解压即用） |`n"
+          $md += "| ``OpenSysKit-Setup-x64.msi`` | 安装版（中文引导） |`n"
+          Set-Content "release-body.md" $md -Encoding UTF8
+          Write-Host $md
+
+      # ── 发版 ────────────────────────────────────────────────
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: OpenSysKit ${{ inputs.version }}
+          body_path: release-body.md
+          draft: false
+          prerelease: false
+          files: |
+            OpenSysKit-win-x64.zip
+            OpenSysKit-Setup-x64.msi
