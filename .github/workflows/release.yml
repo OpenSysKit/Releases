@@ -113,7 +113,7 @@ jobs:
           if ($feHash) {
             $ldflags += " -X main.frontendSHA256=$feHash"
           }
-          go build -ldflags "$ldflags" -o dist\OpenSysKit.exe .\cmd\server
+          go build -ldflags "$ldflags" -o ..\dist\OpenSysKit.exe .\cmd\server
         working-directory: backend
 
       # ── 复制 DriverLoader.sys ───────────────────────────────
