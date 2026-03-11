@@ -22,6 +22,7 @@
     <Icon Id="AppIcon" SourceFile="$(var.DistDir)\OpenSysKit.exe" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon" />
     <Property Id="ARPHELPLINK" Value="https://github.com/OpenSysKit" />
+
     <!-- 安装目录 -->
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLDIR" Name="OpenSysKit">
@@ -92,16 +93,13 @@
                      KeyPath="yes" />
     </Component>
 
-    <!-- Feature 定义 -->
+    <!-- Feature 定义：桌面和开始菜单快捷方式都并入主 Feature，确保默认安装 -->
     <Feature Id="MainFeature" Title="OpenSysKit" Level="1">
       <ComponentRef Id="BackendExe" />
       <ComponentRef Id="FrontendExe" />
       <ComponentRef Id="DriverLoaderSys" />
       <ComponentRef Id="DriverSys" />
       <ComponentRef Id="StartMenuShortcut" />
-    </Feature>
-
-    <Feature Id="DesktopFeature" Title="桌面快捷方式" Level="1">
       <ComponentRef Id="DesktopShortcut" />
     </Feature>
 

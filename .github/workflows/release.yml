@@ -121,6 +121,40 @@ jobs:
         shell: pwsh
         run: Copy-Item "backend\assets\DriverLoader.sys" "dist\DriverLoader.sys"
 
+      # ── 代码签名 ────────────────────────────────────────────
+      - name: Sign executables
+        shell: pwsh
+        env:
+          CODESIGN_PFX: ${{ secrets.CODESIGN_PFX }}
+          CODESIGN_PASSWORD: ${{ secrets.CODESIGN_PASSWORD }}
+        run: |
+          if (-not $env:CODESIGN_PFX) {
+            Write-Warning "CODESIGN_PFX 未设置，跳过签名"
+            exit 0
+          }
+          $certPath = Join-Path $env:RUNNER_TEMP "codesign.pfx"
+          [IO.File]::WriteAllBytes($certPath, [Convert]::FromBase64String($env:CODESIGN_PFX))
+          $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" `
+            -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match "x64" } |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
+          if (-not $signtool) { throw "signtool.exe not found" }
+          Write-Host "Using: $($signtool.FullName)"
+          $files = @("dist\OpenSysKit.exe", "dist\OpenSysKit.UI.exe")
+          foreach ($f in $files) {
+            & $signtool.FullName sign `
+              /fd SHA256 `
+              /f $certPath `
+              /p $env:CODESIGN_PASSWORD `
+              /tr http://timestamp.digicert.com `
+              /td SHA256 `
+              $f
+            if ($LASTEXITCODE -ne 0) { throw "签名失败: $f" }
+            Write-Host "已签名: $f"
+          }
+          Remove-Item $certPath -Force
+
       - name: List dist contents
         shell: pwsh
         run: Get-ChildItem dist\ -Recurse | Format-Table Name, Length
