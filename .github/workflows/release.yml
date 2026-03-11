@@ -28,21 +28,18 @@ jobs:
         with:
           repository: OpenSysKit/new-FrontEnd
           path: frontend
-          token: ${{ secrets.REPO_DISPATCH_TOKEN }}
 
       - name: Checkout backend
         uses: actions/checkout@v4
         with:
           repository: OpenSysKit/BackEnd
           path: backend
-          token: ${{ secrets.REPO_DISPATCH_TOKEN }}
 
       - name: Checkout driver
         uses: actions/checkout@v4
         with:
           repository: OpenSysKit/Driver
           path: driver
-          token: ${{ secrets.REPO_DISPATCH_TOKEN }}
 
       # ── 工具链 ──────────────────────────────────────────────
       - name: Setup .NET
