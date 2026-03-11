@@ -3,14 +3,14 @@
                  xmlns="http://wixtoolset.org/schemas/v4/wxl">
 
   <String Id="WelcomeDlgTitle" Value="{\WixUI_Font_Bigger}欢迎使用 OpenSysKit 安装向导" />
-  <String Id="WelcomeDlgDescription" Value="安装向导将引导您完成 OpenSysKit 的安装。建议在继续之前关闭所有正在运行的应用程序。点击"下一步"继续，或点击"取消"退出安装。" />
+  <String Id="WelcomeDlgDescription" Value="安装向导将引导您完成 OpenSysKit 的安装。建议在继续之前关闭所有正在运行的应用程序。点击【下一步】继续，或点击【取消】退出安装。" />
 
   <String Id="LicenseAgreementDlgTitle" Value="{\WixUI_Font_Bigger}许可协议" />
   <String Id="LicenseAgreementDlgDescription" Value="请仔细阅读以下许可协议。您必须接受协议条款才能继续安装。" />
   <String Id="LicenseAcceptedCheckboxText" Value="我接受许可协议中的条款(&amp;A)" />
 
   <String Id="InstallDirDlgTitle" Value="{\WixUI_Font_Bigger}选择安装位置" />
-  <String Id="InstallDirDlgDescription" Value="安装向导将把 OpenSysKit 安装到以下目录。如需更改安装位置，请点击"浏览"。" />
+  <String Id="InstallDirDlgDescription" Value="安装向导将把 OpenSysKit 安装到以下目录。如需更改安装位置，请点击【浏览】。" />
   <String Id="InstallDirDlgFolderLabel" Value="安装目录：" />
   <String Id="InstallDirDlgChange" Value="浏览(&amp;B)..." />
 
@@ -20,7 +20,7 @@
   <String Id="ProgressDlgTitleRepairing" Value="正在修复" />
 
   <String Id="ExitDlgTitle" Value="{\WixUI_Font_Bigger}安装完成" />
-  <String Id="ExitDlgDescription" Value="OpenSysKit 安装向导已成功完成。点击"完成"关闭向导。" />
+  <String Id="ExitDlgDescription" Value="OpenSysKit 安装向导已成功完成。点击【完成】关闭向导。" />
 
   <String Id="WixUINext" Value="下一步(&amp;N) &gt;" />
   <String Id="WixUIBack" Value="&lt; 上一步(&amp;P)" />
@@ -38,11 +38,11 @@
 
   <String Id="VerifyReadyDlgTitle" Value="{\WixUI_Font_Bigger}准备安装" />
   <String Id="VerifyReadyDlgInstallTitle" Value="准备安装" />
-  <String Id="VerifyReadyDlgInstallText" Value="点击"安装"开始安装 OpenSysKit。如需修改设置，请点击"上一步"。" />
+  <String Id="VerifyReadyDlgInstallText" Value="点击【安装】开始安装 OpenSysKit。如需修改设置，请点击【上一步】。" />
   <String Id="VerifyReadyDlgRepairTitle" Value="准备修复" />
-  <String Id="VerifyReadyDlgRepairText" Value="点击"修复"开始修复 OpenSysKit。" />
+  <String Id="VerifyReadyDlgRepairText" Value="点击【修复】开始修复 OpenSysKit。" />
   <String Id="VerifyReadyDlgRemoveTitle" Value="准备卸载" />
-  <String Id="VerifyReadyDlgRemoveText" Value="点击"卸载"从计算机中移除 OpenSysKit。" />
+  <String Id="VerifyReadyDlgRemoveText" Value="点击【卸载】从计算机中移除 OpenSysKit。" />
 
   <String Id="MaintenanceTypeDlgTitle" Value="{\WixUI_Font_Bigger}维护模式" />
   <String Id="MaintenanceTypeDlgDescription" Value="请选择要执行的操作。" />
