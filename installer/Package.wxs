@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
-     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
 
   <?include Variables.wxi ?>
 
@@ -23,6 +24,14 @@
     <Property Id="ARPPRODUCTICON" Value="AppIcon" />
     <Property Id="ARPHELPLINK" Value="https://github.com/OpenSysKit" />
 
+    <!-- 升级时从注册表读取上次安装路径，自动填入安装目录对话框 -->
+    <Property Id="INSTALLDIR">
+      <RegistrySearch Root="HKLM" Key="SOFTWARE\OpenSysKit" Name="InstallDir" Type="raw" />
+    </Property>
+
+    <!-- 卸载时删除 logs 目录所用的属性（CostFinalize 后赋值） -->
+    <SetProperty Id="LOGSDIR" After="CostFinalize" Value="[INSTALLDIR]logs" />
+
     <!-- 安装目录 -->
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLDIR" Name="OpenSysKit">
@@ -41,6 +50,27 @@
 
         <Component Id="DriverSys" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567804">
           <File Id="OpenSysKitSys" Source="$(var.DistDir)\OpenSysKit.sys" KeyPath="yes" />
+        </Component>
+
+        <!-- 将安装路径写入注册表，供下次升级/修复时读取 -->
+        <Component Id="InstallDirMeta" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567813">
+          <RegistryValue Root="HKLM"
+                         Key="SOFTWARE\OpenSysKit"
+                         Name="InstallDir"
+                         Type="string"
+                         Value="[INSTALLDIR]"
+                         KeyPath="yes" />
+        </Component>
+
+        <!-- 卸载时递归删除 logs 子目录 -->
+        <Component Id="CleanLogs" Guid="A1B2C3D4-E5F6-7890-ABCD-EF1234567814">
+          <util:RemoveFolderEx Property="LOGSDIR" On="uninstall" />
+          <RegistryValue Root="HKCU"
+                         Key="Software\OpenSysKit"
+                         Name="CleanLogs"
+                         Type="integer"
+                         Value="1"
+                         KeyPath="yes" />
         </Component>
 
       </Directory>
@@ -93,12 +123,14 @@
                      KeyPath="yes" />
     </Component>
 
-    <!-- Feature 定义：桌面和开始菜单快捷方式都并入主 Feature，确保默认安装 -->
+    <!-- Feature 定义 -->
     <Feature Id="MainFeature" Title="OpenSysKit" Level="1">
       <ComponentRef Id="BackendExe" />
       <ComponentRef Id="FrontendExe" />
       <ComponentRef Id="DriverLoaderSys" />
       <ComponentRef Id="DriverSys" />
+      <ComponentRef Id="InstallDirMeta" />
+      <ComponentRef Id="CleanLogs" />
       <ComponentRef Id="StartMenuShortcut" />
       <ComponentRef Id="DesktopShortcut" />
     </Feature>

@@ -171,11 +171,14 @@ jobs:
         shell: pwsh
         run: dotnet tool install --global wix --version 5.0.2
 
-      - name: Add WiX UI extension
+      - name: Add WiX extensions
         shell: pwsh
-        run: wix extension add -g WixToolset.UI.wixext/5.0.1
+        run: |
+          wix extension add -g WixToolset.UI.wixext/5.0.1
+          wix extension add -g WixToolset.Util.wixext/5.0.1
 
       - name: Inject version into WiX
+        id: wix_ver
         shell: pwsh
         run: |
           $ver = "${{ inputs.version }}" -replace '^v', ''
@@ -186,17 +189,21 @@ jobs:
           $wxi = $wxi -replace 'ProductVersion = "[\d.]+"', "ProductVersion = `"$msiVer`""
           Set-Content "releases\installer\Variables.wxi" $wxi
           Write-Host "MSI version: $msiVer"
+          $msiName = "OpenSysKit-Setup-x64-${{ inputs.version }}.msi"
+          echo "msi_name=$msiName" >> $env:GITHUB_OUTPUT
 
       - name: Build MSI
         shell: pwsh
         run: |
+          $msiName = "${{ steps.wix_ver.outputs.msi_name }}"
           wix build `
             "releases\installer\Package.wxs" `
             -d DistDir="$PWD\dist" `
             -ext WixToolset.UI.wixext `
+            -ext WixToolset.Util.wixext `
             -culture zh-CN `
             -loc "releases\installer\zh-CN.wxl" `
-            -o "OpenSysKit-Setup-x64.msi"
+            -o $msiName
 
       # ── 生成 Release Notes ──────────────────────────────────
       - name: Generate release notes
@@ -224,10 +231,22 @@ jobs:
           }
           $md += "`n---`n`n"
           $md += "| 文件 | 说明 |`n|------|------|`n"
+          $msiName = "${{ steps.wix_ver.outputs.msi_name }}"
           $md += "| ``OpenSysKit-win-x64.zip`` | 便携版（解压即用） |`n"
-          $md += "| ``OpenSysKit-Setup-x64.msi`` | 安装版（中文引导） |`n"
+          $md += "| ``$msiName`` | 安装版（中文引导） |`n"
+          $md += "| ``OpenSysKit-Driver-Doc-${{ inputs.version }}.docx`` | 驱动开发文档 |`n"
           Set-Content "release-body.md" $md -Encoding UTF8
           Write-Host $md
+
+      # ── 生成驱动文档 ────────────────────────────────────────
+      - name: Generate driver documentation
+        shell: pwsh
+        run: |
+          Set-Location driver
+          npm install --silent
+          $docName = "OpenSysKit-Driver-Doc-${{ inputs.version }}.docx"
+          node generate.js doc-config.json "..\$docName"
+          Write-Host "驱动文档已生成: $docName"
 
       # ── 发版 ────────────────────────────────────────────────
       - name: Create GitHub Release
@@ -240,4 +259,5 @@ jobs:
           prerelease: false
           files: |
             OpenSysKit-win-x64.zip
-            OpenSysKit-Setup-x64.msi
+            OpenSysKit-Setup-x64-${{ inputs.version }}.msi
+            OpenSysKit-Driver-Doc-${{ inputs.version }}.docx
