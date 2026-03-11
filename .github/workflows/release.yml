@@ -14,7 +14,7 @@ permissions:
 jobs:
   build-and-release:
     name: Build All + Package + Release
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       # ── Checkout 各仓库 ──────────────────────────────────────
@@ -90,6 +90,7 @@ jobs:
         run: |
           cmake -B driver\build -S driver -G "Visual Studio 17 2022" -A x64
           cmake --build driver\build --config Release
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
           Copy-Item "driver\build\Release\OpenSysKit.sys" "dist\OpenSysKit.sys"
 
       # ── 计算前端 SHA256 ─────────────────────────────────────
