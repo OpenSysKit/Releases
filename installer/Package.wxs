@@ -22,8 +22,6 @@
     <Icon Id="AppIcon" SourceFile="$(var.DistDir)\OpenSysKit.exe" />
     <Property Id="ARPPRODUCTICON" Value="AppIcon" />
     <Property Id="ARPHELPLINK" Value="https://github.com/OpenSysKit" />
-    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
-
     <!-- 安装目录 -->
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLDIR" Name="OpenSysKit">
